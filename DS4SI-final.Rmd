@@ -1,0 +1,192 @@
+---
+title: "DS4SI-final"
+author: "Michael Wu"
+date: "11/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(weights)
+library(tidyverse)
+library(foreign)
+library(ggrepel)
+
+```
+
+```{r data preparation}
+# the data files are too large to be put in the repository, specify your own data repository
+data_file_path <- "/Users/michaelfive/Google Drive/PISA/Task Flow/replication15feb"
+
+## load in PISA 2015 data
+dat <- read.spss(file.path(data_file_path, "CY6_MS_CMB_STU_QQQ.sav"), to.data.frame=T)
+
+# load in GGI 2015 data
+cdat <- read.csv(file.path(data_file_path,"GGI2015.csv"), as.is = T)
+
+```
+
+```{r functions}
+# functions for cohen's d
+cohens_d <- function(x, y) {
+  lx <- length(x)- 1
+  ly <- length(y)- 1
+  md  <- mean(x, na.rm = T) - mean(y, na.rm = T)        ## mean difference (numerator)
+  csd <- lx * var(x,na.rm = T) + ly * var(y,na.rm = T)
+  csd <- csd/(lx + ly)
+  csd <- sqrt(csd)                     ## common sd computation
+  
+  cd  <- md/csd                        ## cohen's d
+  return(cd)
+}
+
+```
+
+# Replication: PISA & GGGI
+
+```{r Fig 3 Pabel A}
+
+## select relevant variables and countries from the data set
+
+dat.s <- dat %>% select(CNTRYID,W_FSTUWT,ST004D01T, SCIEEFF,PV1MATH:PV10SCIE) 
+names(dat.s)[c(1:4)] <- c("country","weight","gender", "efficacy")
+
+# turn factor into numeric
+dat.s$efficacy <- as.numeric(as.character(dat.s$efficacy))
+
+dat.s <- dat.s[!dat.s$country %in% c( 
+  "Chinese Taipei","Puerto Rico",
+  "Dominican Republic", "Kosovo",
+  "USA (Massachusetts)", "USA (North Carolina)",
+  "Argentina (Ciudad Autónoma de Buenos)",
+  "Spain (Regions)","Spain (Regions)_duplicated_971") ,  ]
+
+## calculation of the intraindividual scores
+
+cat("Step 1: We standardized the mathematics, science, and reading scores on a nation-by-nation basis. We call these new standardized scores zMath, zRead- ing, and zScience, respectively.")
+
+dat.s$scie <- rowMeans(dat.s[,paste("PV",1:5,"SCIE",sep="")])
+dat.s$math <- rowMeans(dat.s[,paste("PV",1:5,"MATH",sep="")])
+dat.s$read <- rowMeans(dat.s[,paste("PV",1:5,"READ",sep="")])
+
+dat.s <- dat.s %>% group_by(country) %>% mutate(
+  z_scie = scale(scie),
+  z_math = scale(math),
+  z_read = scale(read)
+)
+
+cat("Step 2: We standardized the mathematics, science, and reading scores on a nation-by-nation basis. We call these new standardized scores zMath, zReading, and zScience, respectively.")
+
+dat.s$general = rowMeans( dat.s[,c("z_math","z_read","z_scie")] ) 
+
+dat.s <- dat.s %>% group_by(country) %>% mutate( gz = stdz(general, weight) )
+
+cat("Step 3: Then, we calculated each student’s intraindivid- ual strengths by subtracting zGeneral as follows: relative science strength = zScience – zGeneral, relative math strength = zMath – zGeneral, rela- tive reading strength = zReading – zGeneral.")
+
+dat.s$iiScie <- dat.s$z_scie - dat.s$gz
+dat.s$iiMath <- dat.s$z_math - dat.s$gz
+dat.s$iiRead <- dat.s$z_read - dat.s$gz
+
+dat.s <- dat.s %>% group_by(country) %>% mutate(
+  iiSciez = scale(iiScie),
+  iiMathz = scale(iiMath),
+  iiReadz = scale(iiRead)
+)
+
+cat("Step 4: Then, we calculated each student’s intraindividual strengths by subtracting zGeneral as follows: relative science strength = zScience – zGeneral, relative math strength = zMath – zGeneral, rela- tive reading strength = zReading – zGeneral.")
+
+dat.s <- select(dat.s, country, weight, gender, scie, math, read, efficacy, iiSciez, iiMathz, iiReadz , gz )
+
+cdat.s <- dat.s %>% group_by(country) %>% dplyr::summarize(
+     scieGap = weighted.mean(iiSciez[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiSciez[gender == "Female"], w = weight[gender == "Female"]),
+     mathGap = weighted.mean(iiMathz[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiMathz[gender == "Female"], w = weight[gender == "Female"]),
+     readGap = weighted.mean(iiReadz[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiReadz[gender == "Female"], w = weight[gender == "Female"])
+)
+
+## now we load in the GGI data and combine with gap pisa results
+cdat.n <- left_join(cdat.s, cdat , by = "country")
+
+## make data frame for easier use with cor.test
+tmp = as.data.frame( cdat.n )
+tmp = tmp[ !is.na(tmp[,"GGI"]),]
+
+## report the N so you can compare with the paper (this should be 62)
+cat(paste("Countries with both pisa data and gender equality data:",sum(!is.na(tmp[,"scieGap"])&!is.na(tmp[,"GGI"]))))
+
+## print the correlation of Figure 3A and page 585
+print ( cor.test( tmp[,"scieGap"] , tmp[,"GGI"] , method="spearman") )
+
+## print the reading correlation, as reported on page 585
+print ( cor.test( tmp[,"readGap"] , tmp[,"GGI"] , method="spearman") )
+
+
+## plot
+ggplot(tmp, aes(y = GGI, x = scieGap)) + 
+  geom_point(color = "red", size = 0.8) + 
+  geom_smooth(method = "lm", fill = NA, size = 0.8) + 
+  geom_text_repel(aes(label = country)) +
+  labs(y = "Global Gender Gap Index (GGGI)", x = "Gender Gap in Intraindividual Science Performance (d)") +
+  theme_classic()
+
+```
+
+```{r Fig 2 Panel A&B}
+## Panel A
+cdat.n.cohend <- dat.s %>% group_by(country) %>% 
+  dplyr::summarize(
+    
+    scieGap = cohens_d(scie[gender == "Male"], scie[gender == "Female"]),
+    mathGap = cohens_d(math[gender == "Male"], math[gender == "Female"]),
+    readGap = cohens_d(read[gender == "Male"], read[gender == "Female"]),
+    efficacyGap = cohens_d(efficacy[gender == "Male"], efficacy[gender == "Female"])
+    
+  ) %>%
+  left_join(., cdat , by = "country")
+
+cdat.n.cohend.long <- cdat.n.cohend %>% 
+  na.omit() %>%
+  gather(scieGap:readGap,key = "gap_type", value = "gap")
+
+
+ggplot(cdat.n.cohend.long, aes(x = reorder(country, desc(country)), y = gap, fill = gap_type)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  scale_fill_manual(values=c("#00BA38", "#F8766D", "#619CFF")) +
+  coord_flip() +
+  labs(x = "", y = "Sex differences in National PISA Scores (d)",
+       fill = "") + 
+  theme_classic()
+
+
+## Panel B
+cdat.n.long <- gather(na.omit(cdat.n), scieGap:readGap,key = "gap_type", value = "gap")
+
+ggplot(cdat.n.long, aes(x = reorder(country, desc(country)), y = gap, fill = gap_type)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  scale_fill_manual(values=c("#00BA38", "#F8766D", "#619CFF")) +
+  coord_flip() +
+  labs(x = "", y = "Sex differences in Intraindividual Scores (d)",
+       fill = "") + 
+  theme_classic()
+```
+
+```{r Fig 4}
+ggplot(cdat.n.cohend, aes(x = GGI, y = efficacyGap)) +
+  geom_point(color = "red", size = 0.8) + 
+  geom_smooth(method = "lm", fill = NA, size = 0.8) + 
+  geom_text_repel(aes(label = country)) +
+  labs(x = "Global Gender Gap Index (GGGI)", y = "Sex Differences in Science Self-Efficacy (d)") +
+  theme_classic()
+
+```
+
+
+# Replication 
+
+TBD...
+
+
+
+
+
+
