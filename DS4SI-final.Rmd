@@ -12,6 +12,7 @@ library(weights)
 library(tidyverse)
 library(foreign)
 library(ggrepel)
+library(lme4)
 
 ```
 
@@ -45,6 +46,8 @@ cohens_d <- function(x, y) {
 
 # Replication: PISA & GGGI
 
+We replicate here all the analysis in the original study that used the PISA 2015 data and the GGGI 2015 data.
+
 ```{r Fig 3 Pabel A}
 
 ## select relevant variables and countries from the data set
@@ -71,14 +74,14 @@ dat.s$math <- rowMeans(dat.s[,paste("PV",1:5,"MATH",sep="")])
 dat.s$read <- rowMeans(dat.s[,paste("PV",1:5,"READ",sep="")])
 
 dat.s <- dat.s %>% group_by(country) %>% mutate(
-  z_scie = scale(scie),
-  z_math = scale(math),
-  z_read = scale(read)
+  z_scie = stdz(scie, weight),
+  z_math = stdz(math, weight),
+  z_read = stdz(read, weight)
 )
 
 cat("Step 2: We standardized the mathematics, science, and reading scores on a nation-by-nation basis. We call these new standardized scores zMath, zReading, and zScience, respectively.")
 
-dat.s$general = rowMeans( dat.s[,c("z_math","z_read","z_scie")] ) 
+dat.s$general <- rowMeans( dat.s[,c("z_math","z_read","z_scie")] ) 
 
 dat.s <- dat.s %>% group_by(country) %>% mutate( gz = stdz(general, weight) )
 
@@ -89,9 +92,9 @@ dat.s$iiMath <- dat.s$z_math - dat.s$gz
 dat.s$iiRead <- dat.s$z_read - dat.s$gz
 
 dat.s <- dat.s %>% group_by(country) %>% mutate(
-  iiSciez = scale(iiScie),
-  iiMathz = scale(iiMath),
-  iiReadz = scale(iiRead)
+  iiSciez = stdz(iiScie, weight),
+  iiMathz = stdz(iiMath, weight),
+  iiReadz = stdz(iiRead, weight)
 )
 
 cat("Step 4: Then, we calculated each student’s intraindividual strengths by subtracting zGeneral as follows: relative science strength = zScience – zGeneral, relative math strength = zMath – zGeneral, rela- tive reading strength = zReading – zGeneral.")
@@ -181,11 +184,192 @@ ggplot(cdat.n.cohend, aes(x = GGI, y = efficacyGap)) +
 ```
 
 
-# Replication 
+# Additional Analysis 
 
-TBD...
+First, we try using the plausible values correctly (i.e. averaging the correlation estimates rather than the plausible values before further analysis) and repeat their z-scoring procedure.
+
+```{r analysis 1}
+## select relevant variables and countries from the data set
+
+dat.s <- dat %>% select(CNTRYID,W_FSTUWT,ST004D01T, SCIEEFF,PV1MATH:PV10SCIE) 
+names(dat.s)[c(1:4)] <- c("country","weight","gender", "efficacy")
+
+# turn factor into numeric
+dat.s$efficacy <- as.numeric(as.character(dat.s$efficacy))
+
+dat.s <- dat.s[!dat.s$country %in% c( 
+  "Chinese Taipei","Puerto Rico",
+  "Dominican Republic", "Kosovo",
+  "USA (Massachusetts)", "USA (North Carolina)",
+  "Argentina (Ciudad Autónoma de Buenos)",
+  "Spain (Regions)","Spain (Regions)_duplicated_971") ,  ]
+
+get.cor1 <- function(dat.s, i){
+
+    dat.s$scie <- dat.s[,paste("PV",i,"SCIE",sep="")]
+    dat.s$math <- dat.s[,paste("PV",i,"MATH",sep="")]
+    dat.s$read <- dat.s[,paste("PV",i,"READ",sep="")]
+    
+    dat.s <- dat.s %>% group_by(country) %>% mutate(
+      z_scie = stdz(scie, weight),
+      z_math = stdz(math, weight),
+      z_read = stdz(read, weight)
+    )
+    
+    dat.s$general <- rowMeans( dat.s[,c("z_math","z_read","z_scie")] ) 
+    
+    dat.s <- dat.s %>% group_by(country) %>% mutate( gz = stdz(general, weight) )
+    
+    dat.s$iiScie <- dat.s$z_scie - dat.s$gz
+    dat.s$iiMath <- dat.s$z_math - dat.s$gz
+    dat.s$iiRead <- dat.s$z_read - dat.s$gz
+    
+    dat.s <- dat.s %>% group_by(country) %>% mutate(
+      iiSciez = stdz(iiScie, weight),
+      iiMathz = stdz(iiMath, weight),
+      iiReadz = stdz(iiRead, weight)
+    )
+    
+    dat.s <- select(dat.s, country, weight, gender, scie, math, read, efficacy, iiSciez, iiMathz, iiReadz , gz )
+    
+    cdat.s <- dat.s %>% group_by(country) %>% dplyr::summarize(
+         scieGap = weighted.mean(iiSciez[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiSciez[gender == "Female"], w = weight[gender == "Female"]),
+         mathGap = weighted.mean(iiMathz[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiMathz[gender == "Female"], w = weight[gender == "Female"]),
+         readGap = weighted.mean(iiReadz[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiReadz[gender == "Female"], w = weight[gender == "Female"])
+    )
+    
+    ## now we load in the GGI data and combine with gap pisa results
+    cdat.n <- left_join(cdat.s, cdat , by = "country")
+    
+    ## make data frame for easier use with cor.test
+    tmp = as.data.frame( cdat.n )
+    tmp = tmp[ !is.na(tmp[,"GGI"]),]
+    
+    ## print the correlation of Figure 3A and page 585
+    cor <- suppressWarnings(cor.test( tmp[,"scieGap"] , tmp[,"GGI"] , method="spearman"))
+    
+    ## return correlation coefficient
+    return(cor$estimate)
+
+}
+
+# run a for loop to get all 10 estimates
+df <- c()
+for (i in 1:10) {
+  
+  df[i] <- get.cor1(dat.s, i)
+  
+}
+
+# average the estimates
+mean(df) # 0.4045611
+```
+
+Second, we try a different way of calculating relative strength. We first calculate the relative strength by subtracting science score from the mean score of science, reading and math for each individual. We then standardize this score within each country.
+
+```{r analysis 2}
+
+get.cor2 <- function(dat.s, i){
+
+    dat.s$scie <- dat.s[,paste("PV",i,"SCIE",sep="")]
+    dat.s$math <- dat.s[,paste("PV",i,"MATH",sep="")]
+    dat.s$read <- dat.s[,paste("PV",i,"READ",sep="")]
+    
+    dat.s$general <- rowMeans( dat.s[,c("math","read","scie")] ) 
+    
+    dat.s$iiScie <- dat.s$scie - dat.s$general
+    dat.s$iiMath <- dat.s$math - dat.s$general
+    dat.s$iiRead <- dat.s$read - dat.s$general
+    
+    dat.s <- dat.s %>% group_by(country) %>% mutate(
+      iiSciez = stdz(iiScie, weight),
+      iiMathz = stdz(iiMath, weight),
+      iiReadz = stdz(iiRead, weight)
+    )
+    
+    dat.s <- select(dat.s, country, weight, gender, scie, math, read, efficacy, iiSciez, iiMathz, iiReadz)
+    
+    cdat.s <- dat.s %>% group_by(country) %>% dplyr::summarize(
+         scieGap = weighted.mean(iiSciez[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiSciez[gender == "Female"], w = weight[gender == "Female"]),
+         mathGap = weighted.mean(iiMathz[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiMathz[gender == "Female"], w = weight[gender == "Female"]),
+         readGap = weighted.mean(iiReadz[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(iiReadz[gender == "Female"], w = weight[gender == "Female"])
+    )
+    
+    ## now we load in the GGI data and combine with gap pisa results
+    cdat.n <- left_join(cdat.s, cdat , by = "country")
+    
+    ## make data frame for easier use with cor.test
+    tmp = as.data.frame( cdat.n )
+    tmp = tmp[ !is.na(tmp[,"GGI"]),]
+    
+    ## print the correlation of Figure 3A and page 585
+    cor <- suppressWarnings(cor.test( tmp[,"scieGap"] , tmp[,"GGI"] , method="spearman"))
+    
+    ## return correlation coefficient
+    return(cor$estimate)
+
+}
+
+# run a for loop to get all 10 estimates
+df <- c()
+for (i in 1:10) {
+  
+  df[i] <- get.cor2(dat.s, i)
+  
+}
+
+# average the estimates
+mean(df) # 0.4014356
+```
 
 
+Third, we build a multilevel model to predict raw individual relative strength score using country-level GGGI, controlling for other individual level confounders.
+
+```{r analysis 3}
+dat.s <- dat %>% select(CNTRYID, CNTSCHID, CNTSTUID,
+                            ST001D01T,ST004D01T, SMINS, 
+                            TMINS, ESCS, REPEAT,
+                            IMMIG, JOYSCIE, INTBRSCI, 
+                            INSTSCIE,SCIEEFF,EPIST, 
+                            SCIEACT, MOTIVAT, W_FSTUWT, PV1SCIE) 
+
+names(dat.s) <- c("country", "schid", "id",
+                "grade","gender", "science_time",
+                "total_time","ses", "graderepeat", 
+                "immigration", "sci_enjoy","sci_interest", 
+                "sci_instrument","sci_efficacy","sci_epist",
+                "sci_activity", "sci_motivation", "weight", "pv1"
+                )
+
+dat.s <- left_join(dat.s, cdat, by = "country")
+
+fit1 <- lmer(pv1 ~ 1 + gender + 
+              (1 | schid:country) + # level 2 random effect
+              (1 + gender | country ), # level 3 random effect
+           weights = weight, data = dat.s)
+
+fit2 <- lmer(pv1 ~ 1 + gender * GGI + 
+              (1 | schid:country) + # level 2 random effect
+              (1 + gender | country ), # level 3 random effect
+           weights = weight, data = dat.s)
+
+fit3 <- lmer(pv1 ~ 1   + 
+             science_time + total_time + immigration + grade + graderepeat + ses + gender + 
+              (1 | schid:country) + # level 2 random effect
+              (1 + gender | country ), # level 3 random effect
+           weights = weight, data = dat.s)
+
+fit4 <- lmer(pv1 ~ 1   + 
+             science_time + total_time + immigration + grade + graderepeat + ses + gender * GGI + 
+              (1 | schid:country) + # level 2 random effect
+              (1 + gender | country ), # level 3 random effect
+           weights = weight, data = dat.s)
+
+screenreg(list(fit1, fit2, fit3, fit4), digits = 3)
+
+
+
+```
 
 
 
