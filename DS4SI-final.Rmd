@@ -370,7 +370,200 @@ screenreg(list(fit1, fit2, fit3, fit4), digits = 3)
 
 
 ```
+```{r VZ_analysis 1}
+#Would GGI predict Gendergap in ScieGap/MathGap/ReadGap?
+reg0<-with(tmp,lm(scieGap~GGI))
+reg0.1<-with(tmp,lm(mathGap~GGI))
+reg0.2<-with(tmp,lm(readGap~GGI))
+with(tmp,cov(scieGap,GGI)) #scieGap 0.005014771
+with(tmp,cov(mathGap,GGI)) #mathGap -0.0006225173
+with(tmp,cov(readGap,GGI)) #readGap -0.00247364
+
+summary(reg0)
+summary(reg0.1)
+summary(reg0.2)
+```
+
+```{r additional analysis 2- do not use}
+#Try to use standardized scores zMath, zRead,z_scie (not the Intraindividual strength), to see how the strength alone may be related to efficacy.
+#No interesting findings.
+# Do not run!
+# Just leave here fyi
+
+
+#dat.s <- dat %>% select(CNTRYID,W_FSTUWT,ST004D01T, SCIEEFF,PV1MATH:PV10SCIE) 
+#names(dat.s)[c(1:4)] <- c("country","weight","gender", "efficacy")
+
+# turn factor into numeric
+#dat.s$efficacy <- as.numeric(as.character(dat.s$efficacy))
+
+#dat.s <- dat.s[!dat.s$country %in% c( 
+ # "Chinese Taipei","Puerto Rico",
+ # "Dominican Republic", "Kosovo",
+ # "USA (Massachusetts)", "USA (North Carolina)",
+ # "Argentina (Ciudad Autónoma de Buenos)",
+ # "Spain (Regions)","Spain (Regions)_duplicated_971") ,  ]
+#dat.s$scie <- rowMeans(dat.s[,paste("PV",1:5,"SCIE",sep="")])
+#dat.s$math <- rowMeans(dat.s[,paste("PV",1:5,"MATH",sep="")])
+#dat.s$read <- rowMeans(dat.s[,paste("PV",1:5,"READ",sep="")])
+
+#dat.s <- dat.s %>% group_by(country) %>% mutate(
+ # z_scie = scale(scie),
+ # z_math = scale(math),
+  #z_read = scale(read)
+#)
+
+#dat.s$general = rowMeans( dat.s[,c("z_math","z_read","z_scie")] ) 
+
+#dat.s <- dat.s %>% group_by(country) %>% mutate( gz = stdz(general, weight) )
+
+cat(" Then, we calculated each student’s intraindivid- ual strengths by subtracting zGeneral as follows: relative science strength = zScience – zGeneral, relative math strength = zMath – zGeneral, rela- tive reading strength = zReading – zGeneral.")
+
+#dat.s$iiScie <- dat.s$z_scie - dat.s$gz
+#dat.s$iiMath <- dat.s$z_math - dat.s$gz
+#dat.s$iiRead <- dat.s$z_read - dat.s$gz
+
+#dat.s <- dat.s %>% group_by(country) %>% mutate(
+  #iiSciez = scale(iiScie),
+  #iiMathz = scale(iiMath),
+  #iiReadz = scale(iiRead)
+#)
+
+#Cov
+#with(dat.s,cov(z_scie,z_math))
+#with(dat.s,cov(z_scie,z_read))
+#with(dat.s,cov(z_math,z_read))
+
+#with(dat.s,cov(iiScie,iiMath))
+#with(dat.s,cov(iiScie,iiRead))
+#with(dat.s,cov(iiMath,iiRead))
+
+
+#testset <- select(dat.s, country, weight, gender, scie, math, read, efficacy, z_scie, z_math, z_read ,iiScie, iiMath,iiRead,gz )
+
+#testset.s <- testset %>% group_by(country) %>% dplyr::summarize(
+     #scieGap = weighted.mean(z_scie[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(z_scie[gender == "Female"], w = weight[gender == "Female"]),
+     #mathGap = weighted.mean(z_math[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(z_math[gender == "Female"], w = weight[gender == "Female"]),
+    # readGap = weighted.mean(z_read[gender == "Male"], w = weight[gender == "Male"]) - weighted.mean(z_read[gender == "Female"], w = weight[gender == "Female"])
+#)
+
+## now we load in the GGI data and combine with gap pisa results
+#testset.n <- left_join(testset.s, cdat , by = "country")
+
+## make data frame for easier use with cor.test
+#tmp1 = as.data.frame( testset.n )
+#tmp1 = tmp1[ !is.na(tmp1[,"GGI"]),]
+
+## report the N so you can compare with the paper (this should be 62)
+#cat(paste("Countries with both pisa data and gender equality data:",sum(!is.na(tmp1[,"scieGap"])&!is.na(tmp1[,"GGI"]))))
+
+## print the correlation of Figure 3A and page 585
+#print ( cor.test( tmp1[,"scieGap"] , tmp1[,"GGI"] , method="spearman") )
+
+## print the reading correlation, as reported on page 585
+#print ( cor.test( tmp1[,"readGap"] , tmp1[,"GGI"] , method="spearman") )
+
+
+###############################
+
+#reg1<-with(tmp,lm(scieGap~GGI))
+
+
+#summary(reg0)
+#summary(reg1)
 
 
 
+```
+
+```{r additional analysis 3}
+#Select subset
+dat.s <- dat %>% select(CNTRYID,W_FSTUWT,ST004D01T, SCIEEFF,PV1MATH:PV10SCIE) 
+names(dat.s)[c(1:4)] <- c("country","weight","gender", "efficacy")
+
+# turn factor into numeric
+dat.s$efficacy <- as.numeric(as.character(dat.s$efficacy))
+
+dat.s <- dat.s[!dat.s$country %in% c( 
+  "Chinese Taipei","Puerto Rico",
+  "Dominican Republic", "Kosovo",
+  "USA (Massachusetts)", "USA (North Carolina)",
+  "Argentina (Ciudad Autónoma de Buenos)",
+  "Spain (Regions)","Spain (Regions)_duplicated_971") ,  ]
+dat.s$scie <- rowMeans(dat.s[,paste("PV",1:5,"SCIE",sep="")])
+dat.s$math <- rowMeans(dat.s[,paste("PV",1:5,"MATH",sep="")])
+dat.s$read <- rowMeans(dat.s[,paste("PV",1:5,"READ",sep="")])
+
+dat.s <- dat.s %>% group_by(country) %>% mutate(
+  z_scie = scale(scie),
+  z_math = scale(math),
+  z_read = scale(read)
+)
+
+dat.s$general = rowMeans( dat.s[,c("z_math","z_read","z_scie")] ) 
+
+dat.s <- dat.s %>% group_by(country) %>% mutate( gz = stdz(general, weight) )
+
+cat("Step 3: Then, we calculated each student’s intraindivid- ual strengths by subtracting zGeneral as follows: relative science strength = zScience – zGeneral, relative math strength = zMath – zGeneral, rela- tive reading strength = zReading – zGeneral.")
+
+dat.s$iiScie <- dat.s$z_scie - dat.s$gz
+dat.s$iiMath <- dat.s$z_math - dat.s$gz
+dat.s$iiRead <- dat.s$z_read - dat.s$gz
+
+dat.s <- dat.s %>% group_by(country) %>% mutate(
+  iiSciez = scale(iiScie),
+  iiMathz = scale(iiMath),
+  iiReadz = scale(iiRead)
+)
+
+testset <- select(dat.s, country, weight, gender, scie, math, read, efficacy, z_scie, z_math, z_read ,iiScie, iiMath,iiRead,gz )
+
+## now we load in the GGI data and combine with gap pisa results
+testset.n <- left_join(testset, cdat , by = "country")
+
+## make data frame for easier use with cor.test
+tmp1 = as.data.frame( testset.n )
+tmp1 = tmp1[ !is.na(tmp1[,"GGI"]),]
+
+###############################
+###############################
+###############################
+########analysis###############
+###############################
+###############################
+###############################
+
+
+#See if standardized strength or intraindividual strengths would affect GGI
+reg2.1<-with(tmp1,lm(GGI~iiScie+iiMath+iiRead))
+reg2.2<-with(tmp1,lm(GGI~iiScie*iiMath*iiRead))
+reg2.3<-with(tmp1,lm(GGI~z_scie+z_math+z_read))
+reg2.4<-with(tmp1,lm(GGI~z_scie*z_math*z_read))
+
+#Summary
+summary(reg2.1)
+summary(reg2.2)
+summary(reg2.3)
+summary(reg2.4)
+anova(reg2.1,reg2.2)
+anova(reg2.3,reg2.4)
+
+#Best fit model
+models<-list(reg2.1,reg2.2,reg2.3,reg2.4)
+ps = unlist(lapply(models, function(x) {nrow(summary(x)$coef)-1})) 
+rsquares = unlist(lapply(models, function(x){summary(x)$r.squared}))
+adj.rsquares = unlist(lapply(models, function(x){summary(x)$adj.r.squared})) 
+loglikes = unlist(lapply(models, logLik))
+AICs = unlist(lapply(models, AIC))
+BICs = unlist(lapply(models, BIC))
+which.max(rsquares) 
+which.max(adj.rsquares)
+which.max(loglikes)
+which.min(AICs)
+which.min(BICs)
+
+#Check q-q plot
+plot(reg2.2)
+
+```
 
