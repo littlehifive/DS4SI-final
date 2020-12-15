@@ -1,12 +1,17 @@
 ---
 title: "DS4SI-final"
-author: "Michael Wu"
-date: "11/30/2020"
+author: "Group H"
+date: "12/05/2020"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = T,
+                      message = F,
+                      warning = F,
+                      results = "asis",
+                      cache = T,
+                      cache.lazy = FALSE)
 
 library(weights)
 library(tidyverse)
@@ -18,18 +23,19 @@ library(lme4)
 
 ```{r data preparation}
 # the data files are too large to be put in the repository, specify your own data repository
-data_file_path <- "/Users/michaelfive/Google Drive/PISA/Task Flow/replication15feb"
+# data_file_path <- "/Users/michaelfive/Google Drive/PISA/Task Flow/replication15feb"
+# 
+# ## load in PISA 2015 data
+# dat <- read.spss(file.path(data_file_path, "CY6_MS_CMB_STU_QQQ.sav"), to.data.frame=T)
+# 
+# # load in GGI 2015 data
+# cdat <- read.csv(file.path(data_file_path,"GGI2015.csv"), as.is = T)
 
-## load in PISA 2015 data
-dat <- read.spss(file.path(data_file_path, "CY6_MS_CMB_STU_QQQ.sav"), to.data.frame=T)
-
-# load in GGI 2015 data
-cdat <- read.csv(file.path(data_file_path,"GGI2015.csv"), as.is = T)
-
+load("~/Desktop/R Directory/Git learning/DS4SI-final/DS4SI-final.RData")
 ```
 
 ```{r functions}
-# functions for cohen's d
+# functions to calculate cohen's d
 cohens_d <- function(x, y) {
   lx <- length(x)- 1
   ly <- length(y)- 1
@@ -134,7 +140,7 @@ ggplot(tmp, aes(y = GGI, x = scieGap)) +
 
 ```
 
-```{r Fig 2 Panel A&B}
+```{r Fig 2 Panel A&B, fig.height = 10, fig.width = 8}
 ## Panel A
 cdat.n.cohend <- dat.s %>% group_by(country) %>% 
   dplyr::summarize(
@@ -186,9 +192,21 @@ ggplot(cdat.n.cohend, aes(x = GGI, y = efficacyGap)) +
 
 # Additional Analysis 
 
-First, we try using the plausible values correctly (i.e. averaging the correlation estimates rather than the plausible values before further analysis) and repeat their z-scoring procedure.
+First, we try to predict GGGI at the country level with science relative performance gap, controlling for the other gaps in math and reading. Results show that science relative performance gap indeed predicts GGGI even after controlling for the other gaps. This may indicate that the explanation of the "gender gap paradox" could really be reversed as no causal path is evident from correlational models.
 
 ```{r analysis 1}
+
+lm1 <- lm(GGI ~ scieGap, cdat.n)
+lm2 <- lm(GGI ~ scieGap + mathGap, cdat.n)
+lm3 <- lm(GGI ~ scieGap + mathGap + readGap, cdat.n)
+
+texreg::htmlreg(list(lm1, lm2, lm3))
+```
+
+
+Second, we try using the plausible values correctly (i.e. averaging the correlation estimates rather than the plausible values before further analysis) and repeat their z-scoring procedure. We arrive at `r` = 0.405, which is pretty close to the original results.
+
+```{r analysis 2}
 ## select relevant variables and countries from the data set
 
 dat.s <- dat %>% select(CNTRYID,W_FSTUWT,ST004D01T, SCIEEFF,PV1MATH:PV10SCIE) 
@@ -265,9 +283,10 @@ for (i in 1:10) {
 mean(df) # 0.4045611
 ```
 
-Second, we try a different way of calculating relative strength. We first calculate the relative strength by subtracting science score from the mean score of science, reading and math for each individual. We then standardize this score within each country.
+Third, we try a different way of calculating relative strength. We first calculate the relative strength by subtracting science score from the mean score of science, reading and math for each individual. We then standardize this score within each country. We arrive at `r` = 0.401, which is also pretty close to the original results.
 
-```{r analysis 2}
+
+```{r analysis 3}
 
 get.cor2 <- function(dat.s, i){
 
@@ -322,55 +341,57 @@ for (i in 1:10) {
 mean(df) # 0.4014356
 ```
 
+Forth and Fifth, we build multilevel models to predict (1) raw individual perforamnce score and (2) the relative strength score using country-level GGGI, controlling for other individual level confounders. Using only the first plausible score (a recommended unbiased shortcut as recommended by the PISA data manual), We found that GGGI does not interact with gender to predict either the raw science performance score or the science performance relative to the overall performance in science, reading and math. This finding provides is contrary to the main findings in the original paper, potentially because we considered the multilevel structure of the data. Importantly, although we attempted to add individual level covariates, the models mostly failed to converge.
 
-Third, we build a multilevel model to predict raw individual relative strength score using country-level GGGI, controlling for other individual level confounders.
-
-```{r analysis 3}
+```{r analysis 4&5}
 dat.s <- dat %>% select(CNTRYID, CNTSCHID, CNTSTUID,
                             ST001D01T,ST004D01T, SMINS, 
                             TMINS, ESCS, REPEAT,
                             IMMIG, JOYSCIE, INTBRSCI, 
                             INSTSCIE,SCIEEFF,EPIST, 
-                            SCIEACT, MOTIVAT, W_FSTUWT, PV1SCIE) 
+                            SCIEACT, MOTIVAT, W_FSTUWT, PV1SCIE, PV1READ, PV1MATH) 
 
 names(dat.s) <- c("country", "schid", "id",
                 "grade","gender", "science_time",
                 "total_time","ses", "graderepeat", 
                 "immigration", "sci_enjoy","sci_interest", 
                 "sci_instrument","sci_efficacy","sci_epist",
-                "sci_activity", "sci_motivation", "weight", "pv1"
+                "sci_activity", "sci_motivation", "weight", "pv1scie", "pv1read", "pv1math"
                 )
+
+dat.s$scie_rel <- rowMeans(dat.s[,c("pv1scie", "pv1read", "pv1math")], na.rm = T)
+dat.s$scie_rel <- dat.s$pv1scie - dat.s$scie_rel
+
 
 dat.s <- left_join(dat.s, cdat, by = "country")
 
-fit1 <- lmer(pv1 ~ 1 + gender + 
+fit1 <- lmer(pv1scie ~ 1 + gender + 
               (1 | schid:country) + # level 2 random effect
               (1 + gender | country ), # level 3 random effect
            weights = weight, data = dat.s)
 
-fit2 <- lmer(pv1 ~ 1 + gender * GGI + 
+fit2 <- lmer(pv1scie ~ 1 + gender * GGI + 
               (1 | schid:country) + # level 2 random effect
               (1 + gender | country ), # level 3 random effect
            weights = weight, data = dat.s)
 
-fit3 <- lmer(pv1 ~ 1   + 
-             science_time + total_time + immigration + grade + graderepeat + ses + gender + 
+fit3 <- lmer(scie_rel ~ 1 + gender + 
               (1 | schid:country) + # level 2 random effect
               (1 + gender | country ), # level 3 random effect
            weights = weight, data = dat.s)
 
-fit4 <- lmer(pv1 ~ 1   + 
-             science_time + total_time + immigration + grade + graderepeat + ses + gender * GGI + 
+fit4 <- lmer(scie_rel ~ 1 + gender * GGI + 
               (1 | schid:country) + # level 2 random effect
               (1 + gender | country ), # level 3 random effect
            weights = weight, data = dat.s)
 
-screenreg(list(fit1, fit2, fit3, fit4), digits = 3)
+# model won't converge well with covariates
 
+
+texreg::htmlreg(list(fit1, fit2, fit3, fit4),
+                  custom.model.names = c("Raw score", "Raw score",
+                                         "Relative score", "Relative score"),
+                  digits = 3)
 
 
 ```
-
-
-
-
