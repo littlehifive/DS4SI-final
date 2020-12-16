@@ -31,7 +31,7 @@ library(lme4)
 # # load in GGI 2015 data
 # cdat <- read.csv(file.path(data_file_path,"GGI2015.csv"), as.is = T)
 
-load("~/Desktop/R Directory/Git learning/DS4SI-final/DS4SI-final.RData")
+load("~/Desktop/R Directory/Git learning/DS4SI-final.RData")
 ```
 
 ```{r functions}
@@ -192,7 +192,7 @@ ggplot(cdat.n.cohend, aes(x = GGI, y = efficacyGap)) +
 
 # Additional Analysis 
 
-First, we try to predict GGGI at the country level with science relative performance gap, controlling for the other gaps in math and reading. Results show that science relative performance gap indeed predicts GGGI even after controlling for the other gaps. This may indicate that the explanation of the "gender gap paradox" could really be reversed as no causal path is evident from correlational models.
+First, we tried to predict GGGI at the country level with the science relative performance gap, controlling for the other gaps in math and reading. Results show that the science relative performance gap indeed predicts GGGI, even after controlling for the other gaps and the interactions across gaps. This may indicate that the explanation of the “gender gap paradox” could really be reversed as no causal path is evident from correlational models.
 
 ```{r analysis 1}
 
@@ -205,7 +205,7 @@ texreg::htmlreg(list(lm1, lm2, lm3, lm4))
 ```
 
 
-Second, we try using the plausible values correctly (i.e. averaging the correlation estimates rather than the plausible values before further analysis) and repeat their z-scoring procedure. We arrive at `r` = 0.405, which is pretty close to the original results.
+Second, we tried using the plausible values correctly (i.e. averaging the correlation estimates rather than the plausible values before further analysis) and repeated their z-scoring procedure. We arrived at an average of `r` = 0.405 (across 10 coefficients), which is pretty close to the original results. This suggests that the proper handling of plausible values did not alter the direction or the significance of the original results. However, the smallest `r` is 0.33, suggesting that the magnitude of the effect may not be close to the true effect if only one plausible value is used.
 
 ```{r analysis 2}
 ## select relevant variables and countries from the data set
@@ -284,8 +284,7 @@ for (i in 1:10) {
 mean(df) # 0.4045611
 ```
 
-Third, we try a different way of calculating relative strength. We first calculate the relative strength by subtracting science score from the mean score of science, reading and math for each individual. We then standardize this score within each country. We arrive at `r` = 0.401, which is also pretty close to the original results.
-
+Third, we tried a different way of calculating science relative strength to avoid the authors’ incomprehensible multiple layers of z-scoring. We first calculated the relative strength by subtracting the science score from the mean score of science, reading and math for each individual. We then standardized this score within each country. We arrive at `r` = 0.401, which is also pretty close to the original results.
 
 ```{r analysis 3}
 
@@ -342,9 +341,9 @@ for (i in 1:10) {
 mean(df) # 0.4014356
 ```
 
-Forth and Fifth, we build multilevel models to predict (1) raw individual perforamnce score and (2) the relative strength score using country-level GGGI, controlling for other individual level confounders. Using only the first plausible score (a recommended unbiased shortcut as recommended by the PISA data manual), We found that GGGI does not interact with gender to predict either the raw science performance score or the science performance relative to the overall performance in science, reading and math. This finding provides is contrary to the main findings in the original paper, potentially because we considered the multilevel structure of the data. Importantly, although we attempted to add individual level covariates, the models mostly failed to converge.
+Fourth, we build multilevel models to predict (1) raw individual perforamnce score and (2) the relative strength score using country-level GGGI, controlling for other individual level confounders. Using only the first plausible score (a recommended unbiased shortcut as recommended by the PISA data manual), We found that GGGI does not interact with gender to predict either the raw science performance score or the science performance relative to the overall performance in science, reading and math. This finding provides is contrary to the main findings in the original paper, potentially because we considered the multilevel structure of the data. Importantly, although we attempted to add individual level covariates, the models mostly failed to converge.
 
-```{r analysis 4&5}
+```{r analysis 4}
 dat.s <- dat %>% select(CNTRYID, CNTSCHID, CNTSTUID,
                             ST001D01T,ST004D01T, SMINS, 
                             TMINS, ESCS, REPEAT,
@@ -359,6 +358,11 @@ names(dat.s) <- c("country", "schid", "id",
                 "sci_instrument","sci_efficacy","sci_epist",
                 "sci_activity", "sci_motivation", "weight", "pv1scie", "pv1read", "pv1math"
                 )
+
+# turn factor into numeric
+for (i in 11:17) {
+  dat.s[,i] <- as.numeric(as.character(dat.s[,i]))
+}
 
 dat.s$scie_rel <- rowMeans(dat.s[,c("pv1scie", "pv1read", "pv1math")], na.rm = T)
 dat.s$scie_rel <- dat.s$pv1scie - dat.s$scie_rel
@@ -396,3 +400,37 @@ texreg::htmlreg(list(fit1, fit2, fit3, fit4),
 
 
 ```
+
+Fifth, we explored the relationship between GGGI and the gender differences in enjoyment in science, interest in science, instrumental value of science, science self-efficacy, engagement in science activities and science motivation. This was mainly to explore other potential relationships that could account for the relationship between GGGI and the gender gap science relative strength. We found that more gender egalitarian countries (i.e. higher GGGI) also had significantly larger gender differences in five of these science motivational constructs, except for instrumental value of science. Therefore, the story could really be as the following. Compared to girls, boys are more interested in science and enjoy science more. This gap is larger in wealthier countries because although the instrumental value is not lower, the society generally encourages freedom of choice and the pursuit of “true interests”. Hence, in wealthier countries, both boys and girls are more likely to be encouraged to find their interest, while they may base their interests on their relative performance strength at a given time point, thus leading to more boys liking and choosing science and girls choosing liberal arts. Again, unlike the authors who were quite assertive on their findings, we think that there are many alternative hypotheses to be raised and tested to explain the seemingly paradoxical phenomenon proposed in the paper.
+
+```{r, fig.width=12, fig.height=10}
+cdat.n.cohend.other <- dat.s %>% group_by(country) %>% 
+  dplyr::summarize(
+    enjoyGap = cohens_d(sci_enjoy[gender == "Male"], sci_enjoy[gender == "Female"]),
+    interestGap = cohens_d(sci_interest[gender == "Male"], sci_interest[gender == "Female"]),
+    instrumentGap = cohens_d(sci_instrument[gender == "Male"], sci_instrument[gender == "Female"]),
+    efficacyGap = cohens_d(sci_efficacy[gender == "Male"], sci_efficacy[gender == "Female"]),
+    activityGap = cohens_d(sci_activity[gender == "Male"], sci_activity[gender == "Female"]),
+    motivationGap = cohens_d(sci_motivation[gender == "Male"], sci_motivation[gender == "Female"])) %>%
+  left_join(., cdat , by = "country")
+
+cdat.n.cohend.other.long <- gather(na.omit(cdat.n.cohend.other), enjoyGap:motivationGap,key = "gap_type", value = "gap")
+
+## plot
+ggplot(cdat.n.cohend.other.long, aes(y = GGI, x = gap)) + 
+  geom_point(color = "red", size = 0.8) + 
+  geom_smooth(method = "lm", fill = NA, size = 0.8) + 
+  geom_text_repel(aes(label = country)) +
+  facet_wrap(~gap_type) +
+  labs(y = "Global Gender Gap Index (GGGI)", x = "Gender Gap in Intraindividual Science Performance (d)") +
+  theme_classic()
+
+
+```
+
+
+
+
+
+
+
