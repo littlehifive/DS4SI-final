@@ -589,8 +589,9 @@ ggplot(cdat.n.long, aes(x = reorder(country, desc(country)), y = gap, fill = gap
 <pre class="r"><code>lm1 &lt;- lm(GGI ~ scieGap, cdat.n)
 lm2 &lt;- lm(GGI ~ scieGap + mathGap, cdat.n)
 lm3 &lt;- lm(GGI ~ scieGap + mathGap + readGap, cdat.n)
+lm4 &lt;- lm(GGI ~ scieGap*mathGap*readGap, cdat.n)
 
-texreg::htmlreg(list(lm1, lm2, lm3))</code></pre>
+texreg::htmlreg(list(lm1, lm2, lm3, lm4))</code></pre>
 <table class="texreg" style="margin: 10px auto;border-collapse: collapse;border-spacing: 0px;caption-side: bottom;color: #000000;border-top: 2px solid #000000;">
 <caption>
 Statistical models
@@ -609,6 +610,9 @@ Model 2
 <th style="padding-left: 5px;padding-right: 5px;">
 Model 3
 </th>
+<th style="padding-left: 5px;padding-right: 5px;">
+Model 4
+</th>
 </tr>
 </thead>
 <tbody>
@@ -625,6 +629,9 @@ Model 3
 <td style="padding-left: 5px;padding-right: 5px;">
 0.63<sup>***</sup>
 </td>
+<td style="padding-left: 5px;padding-right: 5px;">
+0.67<sup>**</sup>
+</td>
 </tr>
 <tr>
 <td style="padding-left: 5px;padding-right: 5px;">
@@ -638,6 +645,9 @@ Model 3
 </td>
 <td style="padding-left: 5px;padding-right: 5px;">
 (0.04)
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(0.22)
 </td>
 </tr>
 <tr>
@@ -653,6 +663,9 @@ scieGap
 <td style="padding-left: 5px;padding-right: 5px;">
 0.25<sup>**</sup>
 </td>
+<td style="padding-left: 5px;padding-right: 5px;">
+-0.40
+</td>
 </tr>
 <tr>
 <td style="padding-left: 5px;padding-right: 5px;">
@@ -666,6 +679,9 @@ scieGap
 </td>
 <td style="padding-left: 5px;padding-right: 5px;">
 (0.09)
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(0.58)
 </td>
 </tr>
 <tr>
@@ -681,6 +697,9 @@ mathGap
 <td style="padding-left: 5px;padding-right: 5px;">
 0.11
 </td>
+<td style="padding-left: 5px;padding-right: 5px;">
+0.06
+</td>
 </tr>
 <tr>
 <td style="padding-left: 5px;padding-right: 5px;">
@@ -694,6 +713,9 @@ mathGap
 </td>
 <td style="padding-left: 5px;padding-right: 5px;">
 (0.09)
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(0.47)
 </td>
 </tr>
 <tr>
@@ -709,6 +731,9 @@ readGap
 <td style="padding-left: 5px;padding-right: 5px;">
 0.10
 </td>
+<td style="padding-left: 5px;padding-right: 5px;">
+-0.05
+</td>
 </tr>
 <tr>
 <td style="padding-left: 5px;padding-right: 5px;">
@@ -722,6 +747,145 @@ readGap
 </td>
 <td style="padding-left: 5px;padding-right: 5px;">
 (0.12)
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(0.32)
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+scieGap:mathGap
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+1.17
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(1.14)
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+scieGap:readGap
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+-0.36
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(0.74)
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+mathGap:readGap
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+0.27
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(0.61)
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+scieGap:mathGap:readGap
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+0.67
+</td>
+</tr>
+<tr>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+ 
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+(1.42)
 </td>
 </tr>
 <tr style="border-top: 1px solid #000000;">
@@ -737,6 +901,9 @@ R<sup>2</sup>
 <td style="padding-left: 5px;padding-right: 5px;">
 0.28
 </td>
+<td style="padding-left: 5px;padding-right: 5px;">
+0.36
+</td>
 </tr>
 <tr>
 <td style="padding-left: 5px;padding-right: 5px;">
@@ -750,6 +917,9 @@ Adj. R<sup>2</sup>
 </td>
 <td style="padding-left: 5px;padding-right: 5px;">
 0.24
+</td>
+<td style="padding-left: 5px;padding-right: 5px;">
+0.27
 </td>
 </tr>
 <tr style="border-bottom: 2px solid #000000;">
@@ -765,11 +935,14 @@ Num. obs.
 <td style="padding-left: 5px;padding-right: 5px;">
 62
 </td>
+<td style="padding-left: 5px;padding-right: 5px;">
+62
+</td>
 </tr>
 </tbody>
 <tfoot>
 <tr>
-<td style="font-size: 0.8em;" colspan="4">
+<td style="font-size: 0.8em;" colspan="5">
 <sup><em><strong></sup>p &lt; 0.001; <sup></strong></sup>p &lt; 0.01; <sup></em></sup>p &lt; 0.05
 </td>
 </tr>

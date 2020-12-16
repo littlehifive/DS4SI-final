@@ -199,8 +199,9 @@ First, we try to predict GGGI at the country level with science relative perform
 lm1 <- lm(GGI ~ scieGap, cdat.n)
 lm2 <- lm(GGI ~ scieGap + mathGap, cdat.n)
 lm3 <- lm(GGI ~ scieGap + mathGap + readGap, cdat.n)
+lm4 <- lm(GGI ~ scieGap*mathGap*readGap, cdat.n)
 
-texreg::htmlreg(list(lm1, lm2, lm3))
+texreg::htmlreg(list(lm1, lm2, lm3, lm4))
 ```
 
 
